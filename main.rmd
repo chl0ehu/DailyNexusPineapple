@@ -1,0 +1,87 @@
+---
+title: "Potential Daily Nexus"
+output: html_document
+---
+
+# Trying to see if its true that a proffsseor that teachs a course over a long period of time has better results measured with the average gpa with said course
+
+
+<!-- Actually getting the data-->
+``` {r}
+grades <- read.csv("allGrades.csv")
+```
+
+<!-- Filtering the data for the year wanted-->
+``` {r}
+
+startYear <- 2020
+endYear <- 2024
+
+terminalOutput <- grades[grades$year >= startYear & grades$year <= endYear, ]
+```
+
+<!-- TEST associatting the instructor weith course and amount of times
+to do... select if they repeat every quarter
+-->
+``` {r}
+library(dplyr)
+
+repeated_courses <- terminalOutput %>%
+  group_by(instructor, course) %>%         
+  summarize(times_taught = n(), .groups = 'drop') %>% 
+  filter(times_taught > 3)             
+
+```
+
+``` {r}
+# Load the necessary libraries
+library(dplyr)
+library(tidyr)
+
+# Creating search variables
+startYear <- 2020 # int
+endYear <- 2023   # int
+searchQuarter <- "Spring" # string
+
+# Assuming your dataset is called `grades`
+spring_gpa <- grades %>%
+  # Select only the relevant columns
+  select(instructor, course, quarter, year, avgGPA, dept) %>%
+  # Filter for Spring quarter and the years 2020 to 2023
+  filter(quarter == searchQuarter, year %in% startYear:endYear) %>%
+  # Pivot the data to create columns for each year
+  pivot_wider(
+    names_from = year,                    # Create columns for each year
+    values_from = avgGPA,                # Use avg_gpa for the new columns
+    names_prefix = "Year_"                # Add prefix "Year_" to the column names
+  )
+
+
+
+# Add trend analysis
+trend_analysis <- spring_gpa %>%
+  mutate(
+    trend = case_when(
+      # Check for an upward trend
+      Year_2020 < Year_2021 & Year_2021 < Year_2022 & Year_2022 < Year_2023 ~ "Upward Trend",
+      # Check for a downward trend
+      Year_2020 > Year_2021 & Year_2021 > Year_2022 & Year_2022 > Year_2023 ~ "Downward Trend",
+      # Default to "No Trend"
+      TRUE ~ "No Trend"
+   
+    )
+  )
+
+print(trend_analysis)
+
+write.csv(trend_analysis, "main.csv", row.names = FALSE)
+
+trend_analysis <- trend_analysis %>%
+  filter(across(starts_with("Year_"), ~ . != 0 & . != "NA")) %>%
+  na.omit()
+
+  print(trend_analysis)
+  
+write.csv(trend_analysis, "final.csv", row.names = FALSE)
+  
+```
