@@ -41,47 +41,66 @@ library(tidyr)
 # Creating search variables
 startYear <- 2020 # int
 endYear <- 2023   # int
-searchQuarter <- "Spring" # string
+quarters_list <- c("Fall", "Winter", "Spring")
+all_trend_analysis <- data.frame() 
 
-# Assuming your dataset is called `grades`
-spring_gpa <- grades %>%
-  # Select only the relevant columns
-  select(instructor, course, quarter, year, avgGPA, dept) %>%
-  # Filter for Spring quarter and the years 2020 to 2023
-  filter(quarter == searchQuarter, year %in% startYear:endYear) %>%
-  # Pivot the data to create columns for each year
-  pivot_wider(
-    names_from = year,                    # Create columns for each year
-    values_from = avgGPA,                # Use avg_gpa for the new columns
-    names_prefix = "Year_"                # Add prefix "Year_" to the column names
-  )
 
 
 
-# Add trend analysis
-trend_analysis <- spring_gpa %>%
-  mutate(
-    trend = case_when(
-      # Check for an upward trend
-      Year_2020 < Year_2021 & Year_2021 < Year_2022 & Year_2022 < Year_2023 ~ "Upward Trend",
-      # Check for a downward trend
-      Year_2020 > Year_2021 & Year_2021 > Year_2022 & Year_2022 > Year_2023 ~ "Downward Trend",
-      # Default to "No Trend"
-      TRUE ~ "No Trend"
-   
-    )
-  )
+# Assuming your dataset is called `grades`
+    for (word in quarters_list) {
+      searchQuarter <- word
 
-print(trend_analysis)
+      result <- grades %>%
+        # Select only the relevant columns
+        select(instructor, course, quarter, year, avgGPA, dept) %>%
+        # Filter for quarter and the years 2020 to 2023
+        filter(quarter == searchQuarter, year %in% startYear:endYear) %>%
+        # Pivot the data to create columns for each year
+        pivot_wider(
+          names_from = year,                    # Create columns for each year
+          values_from = avgGPA,                # Use avg_gpa for the new columns
+          names_prefix = "Year_"                # Add prefix "Year_" to the column names
+        )
 
-write.csv(trend_analysis, "main.csv", row.names = FALSE)
+      # Add trend analysis for quarters
+      trend_analysis <- result %>%
+        mutate(
+          trend = case_when(
+            # Check for a strictly upward trend
+          Year_2020 < Year_2021 & Year_2021 < Year_2022 & Year_2022 < Year_2023 ~ "Upward Trend",
 
-trend_analysis <- trend_analysis %>%
+          #Check for general upward trend
+          Year_2020 < Year_2021 & Year_2021 < Year_2022 & Year_2022 > Year_2023 ~ "Slight Upward Trend",
+          Year_2020 < Year_2021 & Year_2021 > Year_2022 & Year_2022 < Year_2023 ~ "Slight Upward Trend",
+          Year_2020 > Year_2021 & Year_2021 < Year_2022 & Year_2022 < Year_2023 ~ "Slight Upward Trend",
+
+          #chek for general downward trend
+          Year_2020 > Year_2021 & Year_2021 > Year_2022 & Year_2022 < Year_2023 ~ "Slight Downward Trend",
+          Year_2020 > Year_2021 & Year_2021 < Year_2022 & Year_2022 > Year_2023 ~ "Slight Downward Trend",
+          Year_2020 < Year_2021 & Year_2021 > Year_2022 & Year_2022 > Year_2023 ~ "Slight Downward Trend",
+
+          # Check for a strictly downward trend
+          Year_2020 > Year_2021 & Year_2021 > Year_2022 & Year_2022 > Year_2023 ~ "Downward Trend",
+
+          # Default to "No Trend"
+          TRUE ~ "No Trend"
+      
+        )
+      )
+      trend_analysis <- trend_analysis %>%
+        mutate(quarter = searchQuarter) 
+      all_trend_analysis <- rbind(all_trend_analysis, trend_analysis)
+    }
+
+
+
+all_trend_analysis <- all_trend_analysis %>%
   filter(across(starts_with("Year_"), ~ . != 0 & . != "NA")) %>%
   na.omit()
 
-  print(trend_analysis)
-  
-write.csv(trend_analysis, "final.csv", row.names = FALSE)
+write.csv(all_trend_analysis, "main.csv", row.names = FALSE)
+print(all_trend_analysis)
+write.csv(all_trend_analysis, "final.csv", row.names = FALSE)
   
 ```

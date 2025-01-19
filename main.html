@@ -387,77 +387,84 @@ library(tidyr)
 # Creating search variables
 startYear &lt;- 2020 # int
 endYear &lt;- 2023   # int
-searchQuarter &lt;- &quot;Spring&quot; # string
+quarters_list &lt;- c(&quot;Fall&quot;, &quot;Winter&quot;, &quot;Spring&quot;)
+all_trend_analysis &lt;- data.frame() 
 
-# Assuming your dataset is called `grades`
-spring_gpa &lt;- grades %&gt;%
-  # Select only the relevant columns
-  select(instructor, course, quarter, year, avgGPA, dept) %&gt;%
-  # Filter for Spring quarter and the years 2020 to 2023
-  filter(quarter == searchQuarter, year %in% startYear:endYear) %&gt;%
-  # Pivot the data to create columns for each year
-  pivot_wider(
-    names_from = year,                    # Create columns for each year
-    values_from = avgGPA,                # Use avg_gpa for the new columns
-    names_prefix = &quot;Year_&quot;                # Add prefix &quot;Year_&quot; to the column names
-  )
 
 
 
-# Add trend analysis
-trend_analysis &lt;- spring_gpa %&gt;%
-  mutate(
-    trend = case_when(
-      # Check for an upward trend
-      Year_2020 &lt; Year_2021 &amp; Year_2021 &lt; Year_2022 &amp; Year_2022 &lt; Year_2023 ~ &quot;Upward Trend&quot;,
-      # Check for a downward trend
-      Year_2020 &gt; Year_2021 &amp; Year_2021 &gt; Year_2022 &amp; Year_2022 &gt; Year_2023 ~ &quot;Downward Trend&quot;,
-      # Default to &quot;No Trend&quot;
-      TRUE ~ &quot;No Trend&quot;
-   
-    )
-  )
+# Assuming your dataset is called `grades`
+    for (word in quarters_list) {
+      searchQuarter &lt;- word
 
-print(trend_analysis)</code></pre>
-<pre><code>## # A tibble: 4,394 × 9
-##    instructor course quarter dept  Year_2020 Year_2021 Year_2022 Year_2023 trend
-##    &lt;chr&gt;      &lt;chr&gt;  &lt;chr&gt;   &lt;chr&gt;     &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt; &lt;chr&gt;
-##  1 BROWNING R WRIT … Spring  WRIT       0        NA        NA         NA   No T…
-##  2 BRADLEY N… WRIT … Spring  WRIT       4         3.89     NA         NA   No T…
-##  3 MORRIS N S WRIT … Spring  WRIT       3.73     NA        NA         NA   No T…
-##  4 GENOVA G L WRIT … Spring  WRIT       3.94     NA        NA         NA   No T…
-##  5 BROWNING R WRIT … Spring  WRIT       3.51     NA        NA         NA   No T…
-##  6 MIZRAHI J… WRIT … Spring  WRIT       3.6      NA        NA         NA   No T…
-##  7 KRYDER E A WRIT … Spring  WRIT       3.91      3.94     NA         NA   No T…
-##  8 SORAPURE … WRIT … Spring  WRIT       3.88      3.74      3.89      NA   No T…
-##  9 MCHUGH P   WRIT … Spring  WRIT       3.97      3.95      4          3.9 No T…
-## 10 COTICH C   WRIT … Spring  WRIT       3.42      3.32      2.95       3.3 No T…
-## # ℹ 4,384 more rows</code></pre>
-<pre class="r"><code>write.csv(trend_analysis, &quot;main.csv&quot;, row.names = FALSE)
+      result &lt;- grades %&gt;%
+        # Select only the relevant columns
+        select(instructor, course, quarter, year, avgGPA, dept) %&gt;%
+        # Filter for quarter and the years 2020 to 2023
+        filter(quarter == searchQuarter, year %in% startYear:endYear) %&gt;%
+        # Pivot the data to create columns for each year
+        pivot_wider(
+          names_from = year,                    # Create columns for each year
+          values_from = avgGPA,                # Use avg_gpa for the new columns
+          names_prefix = &quot;Year_&quot;                # Add prefix &quot;Year_&quot; to the column names
+        )
 
-trend_analysis &lt;- trend_analysis %&gt;%
+      # Add trend analysis for quarters
+      trend_analysis &lt;- result %&gt;%
+        mutate(
+          trend = case_when(
+            # Check for a strictly upward trend
+          Year_2020 &lt; Year_2021 &amp; Year_2021 &lt; Year_2022 &amp; Year_2022 &lt; Year_2023 ~ &quot;Upward Trend&quot;,
+
+          #Check for general upward trend
+          Year_2020 &lt; Year_2021 &amp; Year_2021 &lt; Year_2022 &amp; Year_2022 &gt; Year_2023 ~ &quot;Slight Upward Trend&quot;,
+          Year_2020 &lt; Year_2021 &amp; Year_2021 &gt; Year_2022 &amp; Year_2022 &lt; Year_2023 ~ &quot;Slight Upward Trend&quot;,
+          Year_2020 &gt; Year_2021 &amp; Year_2021 &lt; Year_2022 &amp; Year_2022 &lt; Year_2023 ~ &quot;Slight Upward Trend&quot;,
+
+          #chek for general downward trend
+          Year_2020 &gt; Year_2021 &amp; Year_2021 &gt; Year_2022 &amp; Year_2022 &lt; Year_2023 ~ &quot;Slight Downward Trend&quot;,
+          Year_2020 &gt; Year_2021 &amp; Year_2021 &lt; Year_2022 &amp; Year_2022 &gt; Year_2023 ~ &quot;Slight Downward Trend&quot;,
+          Year_2020 &lt; Year_2021 &amp; Year_2021 &gt; Year_2022 &amp; Year_2022 &gt; Year_2023 ~ &quot;Slight Downward Trend&quot;,
+
+          # Check for a strictly downward trend
+          Year_2020 &gt; Year_2021 &amp; Year_2021 &gt; Year_2022 &amp; Year_2022 &gt; Year_2023 ~ &quot;Downward Trend&quot;,
+
+          # Default to &quot;No Trend&quot;
+          TRUE ~ &quot;No Trend&quot;
+      
+        )
+      )
+      trend_analysis &lt;- trend_analysis %&gt;%
+        mutate(quarter = searchQuarter) 
+      all_trend_analysis &lt;- rbind(all_trend_analysis, trend_analysis)
+    }
+
+
+
+all_trend_analysis &lt;- all_trend_analysis %&gt;%
   filter(across(starts_with(&quot;Year_&quot;), ~ . != 0 &amp; . != &quot;NA&quot;)) %&gt;%
   na.omit()</code></pre>
 <pre><code>## Warning: Using `across()` in `filter()` was deprecated in dplyr 1.0.8.
 ## ℹ Please use `if_any()` or `if_all()` instead.
 ## Call `lifecycle::last_lifecycle_warnings()` to see where this warning was
 ## generated.</code></pre>
-<pre class="r"><code>  print(trend_analysis)</code></pre>
-<pre><code>## # A tibble: 200 × 9
+<pre class="r"><code>write.csv(all_trend_analysis, &quot;main.csv&quot;, row.names = FALSE)
+print(all_trend_analysis)</code></pre>
+<pre><code>## # A tibble: 742 × 9
 ##    instructor course quarter dept  Year_2020 Year_2021 Year_2022 Year_2023 trend
 ##    &lt;chr&gt;      &lt;chr&gt;  &lt;chr&gt;   &lt;chr&gt;     &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt; &lt;chr&gt;
-##  1 MCHUGH P   WRIT … Spring  WRIT       3.97      3.95      4         3.9  No T…
-##  2 COTICH C   WRIT … Spring  WRIT       3.42      3.32      2.95      3.3  No T…
-##  3 COKLIN L   WRIT … Spring  WRIT       3.83      3.91      3.95      3.71 No T…
-##  4 KRUT R M   WRIT … Spring  WRIT       4         3.93      3.74      3.99 No T…
-##  5 CHENOWETH… WRIT … Spring  WRIT       3.88      3.43      3.48      3.59 No T…
-##  6 FRANK D M  WRIT … Spring  WRIT       3.55      3.47      3.53      3.74 No T…
-##  7 HANSON J L WRIT … Spring  WRIT       3.56      3.53      3.38      3.50 No T…
-##  8 VERTIZ V   WRIT … Spring  WRIT       3.73      3.18      3.60      3.39 No T…
-##  9 WARWICK N… WRIT … Spring  WRIT       3.57      3.34      3.49      3.4  No T…
-## 10 WEBBER M A WRIT … Spring  WRIT       3.75      3.20      3.03      3.45 No T…
-## # ℹ 190 more rows</code></pre>
-<pre class="r"><code>write.csv(trend_analysis, &quot;final.csv&quot;, row.names = FALSE)</code></pre>
+##  1 JOHNSON J… WRIT … Fall    WRIT       3.97      4         4         3.86 No T…
+##  2 COKLIN L   WRIT … Fall    WRIT       3.94      3.94      3.98      3.92 Slig…
+##  3 BAILLARGE… WRIT … Fall    WRIT       3.98      3.62      3.83      3.83 Slig…
+##  4 HIRSCH S A WRIT … Fall    WRIT       3.44      3.54      3.86      3.95 Upwa…
+##  5 COKLIN L   WRIT … Fall    WRIT       3.42      3.41      3.65      3.70 Slig…
+##  6 MCHUGH P   WRIT … Fall    WRIT       3.76      3.77      3.82      3.73 Slig…
+##  7 JOHNSON J… WRIT … Fall    WRIT       3.58      3.61      3.78      3.80 Upwa…
+##  8 SAMUELS R… WRIT … Fall    WRIT       3.40      3.48      3.43      3.61 Slig…
+##  9 GENOVA G L WRIT … Fall    WRIT       3.67      3.61      3.56      3.62 Slig…
+## 10 HANSON J L WRIT … Fall    WRIT       3.77      3.73      3.78      3.63 Slig…
+## # ℹ 732 more rows</code></pre>
+<pre class="r"><code>write.csv(all_trend_analysis, &quot;final.csv&quot;, row.names = FALSE)</code></pre>
 </div>
 
 
