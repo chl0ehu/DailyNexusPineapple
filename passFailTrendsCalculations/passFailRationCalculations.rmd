@@ -1,0 +1,156 @@
+---
+title: "Potential Daily Nexus"
+output: html_document
+---
+
+# Trying to see if its true that a proffsseor that teachs a course over a long period of time has better results measured with the average gpa with said course
+
+<!-- Needed Librbaies -->
+
+``` {r}
+library(dplyr)
+library(tidyr)
+```
+
+<!-- Variables and Dataframe --->
+
+  ``` {r}
+grades <- read.csv("allGrades.csv")
+startYear <- 2020
+endYear <- 2023
+selectQuarter <- "Spring"
+  ```
+
+<!-- Filtering the data by year and quarter -->
+
+``` {r}
+grades <- grades %>%
+  filter(as.numeric(year) >= startYear & as.numeric(year) <= endYear) %>%
+  filter(quarter == selectQuarter)
+
+```
+
+
+<!-- Creating the base of two new tables -->
+
+``` {r} 
+baseTable <- data.frame(instructors = grades$instructor, course = grades$course, dept =  grades$dept, quarter = grades$quarter, year = grades$year)
+```
+
+ <!-- Calculating the pass fail rate of each course and adding it to a new table based off of baseTable -->
+```{r}
+process_quarter <- function(grades, quarter, output_file) {
+  # Filter data by quarter
+  quarter_grades <- grades %>%
+    filter(as.numeric(year) >= startYear & as.numeric(year) <= endYear) %>%
+    filter(quarter == quarter)
+  
+  # Create base table
+  baseTable <- data.frame(
+    instructors = quarter_grades$instructor, 
+    course = quarter_grades$course, 
+    dept = quarter_grades$dept, 
+    quarter = quarter_grades$quarter, 
+    year = quarter_grades$year
+  )
+  
+  # Calculate passFailRatio
+  passNoTable <- baseTable
+  passNoTable$passFailRatio <- NA
+  
+  for (row in 1:nrow(quarter_grades)) {
+    currentRow <- quarter_grades[row, ]
+    amtPassed <- sum(currentRow$Ap, currentRow$Bp, currentRow$Cp, currentRow$Am, currentRow$Bm, currentRow$P, na.rm = TRUE)
+    amtFailed <- sum(currentRow$Cm, currentRow$Dm, currentRow$C, currentRow$D, currentRow$F, na.rm = TRUE)
+    sumOfPassAndFail <- amtPassed + amtFailed
+    
+    if (sumOfPassAndFail > 0) {
+      passNoTable$passFailRatio[row] <- amtPassed / sumOfPassAndFail
+    } else {
+      passNoTable$passFailRatio[row] <- NA
+    }
+  }
+  
+  # Filter out NA rows
+  passNoTable <- passNoTable %>% filter(!is.na(passFailRatio))
+  
+  # Filter for instructors teaching the same course for the entire period
+  trendTable <- passNoTable %>%
+    group_by(instructors, course, dept) %>%
+    filter(n_distinct(year) == (endYear - startYear + 1)) %>%
+    ungroup()
+  
+  # Reshape to wide format
+  trendTableWide <- trendTable %>%
+    select(instructors, course, dept, year, passFailRatio) %>%
+    pivot_wider(names_from = year, values_from = passFailRatio, names_prefix = "passFailRatio")
+  
+  # Define the Trend calculation function
+  calculate_trend <- function(ratios) {
+    tally <- 0
+    for (i in seq_along(ratios)[-length(ratios)]) {
+      if (!is.na(ratios[[i]]) && !is.na(ratios[[i + 1]])) {
+        if (ratios[[i]] > ratios[[i + 1]]) {
+          tally <- tally - 1
+        } else {
+          tally <- tally + 1
+        }
+      }
+    }
+    if (tally <= -3) {
+      return("Strong Downward")
+    } else if (tally == -2) {
+      return("Moderate Downward")
+    } else if (tally == -1) {
+      return("Slight Downward")
+    } else if (tally == 0) {
+      return("No Trend")
+    } else if (tally == 1) {
+      return("Slight Upward")
+    } else if (tally == 2) {
+      return("Moderate Upward")
+    } else {
+      return("Strong Upward")
+    }
+  }
+  
+  # Add Trend column
+  trendTableWide <- trendTableWide %>%
+    rowwise() %>%
+    mutate(Trend = calculate_trend(c_across(starts_with("passFailRatio")))) %>%
+    ungroup()
+  
+  # Write to CSV
+  write.csv(trendTableWide, output_file, row.names = FALSE)
+}
+
+```
+
+<!-- Testing Area -->
+
+``` {r}
+# Apply the function for each quarter
+process_quarter(grades, "Winter", "final_winter.csv")
+process_quarter(grades, "Fall", "final_fall.csv")
+process_quarter(grades, "Spring", "final_spring.csv")
+```
+
+Do profs who teach the same class over a long period of time teach better than they did at the start?
+
+Measure?
+avgGPA -> studenside
+
+as a student I want a good grade so if a prof is grading harsher over time I think they are teaching worse
+
+Passing to not passing rate   
+
+as a prof I don't care about the grades of students I care whether or not they understand the material I am teaching them
+
+
+instead of all departments make it so that it is the top ten departments
+ 
+ student inetrviews
+ department chair aS well
+
+
+
