@@ -1,0 +1,97 @@
+
+---
+title: "Potential Daily Nexus"
+output: html_document
+---
+
+# Analyzing the relationship between professor tenure and average GPA
+
+<!-- Needed Libraries -->
+
+```{r}
+library(dplyr)
+library(tidyr)
+
+start_year <- 2020
+end_year <- 2023
+select_quarter <- "Spring"
+
+```
+
+<!-- Filter by year and quarter-->
+
+```{r}
+grades <- read.csv("allGrades.csv")
+grades$year <- as.numeric(grades$year)
+```
+
+```{r} 
+filter_data <- function(data, start_year, end_year, quarter) {
+  data %>%
+    filter(year >= start_year & year <= end_year) %>%
+    filter(quarter == !!quarter)
+}
+```
+
+```{r}
+# Function to calculate average GPA
+calculate_average_gpa <- function(data) {
+  data %>%
+    group_by(instructor, course, dept, year) %>%
+    summarise(averageGPA = mean(avgGPA, na.rm = TRUE), .groups = "drop")
+}
+```
+
+<!-- Calculate the average GPA for each course and add it to a new table based on baseTable -->
+```{r}
+# Function to calculate trend
+calculate_trend <- function(avgGPA) {
+  diff_gpas <- diff(avgGPA)
+  tally <- sum(sign(diff_gpas), na.rm = TRUE)
+  case_when(
+    tally <= -3 ~ "Strong Downward",
+    tally == -2 ~ "Moderate Downward",
+    tally == -1 ~ "Slight Downward",
+    tally == 0 ~ "No Trend",
+    tally == 1 ~ "Slight Upward",
+    tally == 2 ~ "Moderate Upward",
+    TRUE ~ "Strong Upward"
+  )
+}
+```
+
+```{r}
+# Main processing function
+process_quarter <- function(data, quarter, output_file) {
+  filtered_data <- filter_data(data, start_year, end_year, quarter)
+
+  if (!"avgGPA" %in% colnames(filtered_data)) {
+    stop("Error: 'avgGPA' column not found in dataset")
+  }
+
+  gpa_data <- calculate_average_gpa(filtered_data)
+
+  trend_data <- gpa_data %>%
+    group_by(instructor, course, dept) %>%
+    filter(n_distinct(year) == (end_year - start_year + 1)) %>%
+    ungroup() %>%
+    pivot_wider(names_from = year,
+                values_from = averageGPA,
+                names_prefix = "averageGPA_") %>%
+    rowwise() %>%
+    mutate(Trend = calculate_trend(c_across(starts_with("averageGPA_")))) %>%
+    ungroup() %>%
+    filter(Trend != "No Trend") %>%
+    ungroup()
+  write.csv(trend_data, output_file, row.names = FALSE)
+}
+
+```
+
+``` {r}
+# Apply the function for each quarter
+process_quarter(grades, "Winter", "final_winter.csv")
+process_quarter(grades, "Fall", "final_fall.csv")
+process_quarter(grades, "Spring", "final_spring.csv")
+```
+
